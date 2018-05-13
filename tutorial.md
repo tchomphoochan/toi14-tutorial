@@ -23,6 +23,11 @@
     - 1.4.3 ปัญหาประยุกต์ MST
   - 1.5 Topological Sorting
   - 1.6 Bridges and Articulation Point
+    - 1.6.1 นิยามเกี่ยวกับ edge ใน Depth-first Search
+    - 1.6.2 นิยาม Discovery Time และ Lowlink Value
+    - 1.6.3 คุณสมบัติของ Articulation Point
+    - 1.6.4 คุณสมบัติของ Bridge
+    - 1.6.5 โค้ดของ Tarjan's Algorithm
 
 # 1. Graph Algorithms
 
@@ -289,15 +294,105 @@ while (!Q.empty()) {
 
 ```
 
-Dijkstra's Algorithm ตามโค้ดนี้จะทำงานใน `O(m + n log n)`
+Dijkstra's Algorithm ตามโค้ดนี้จะทำงานใน `O(m + n log n)` ซึ่งถือว่ารวดเร็วพอสมควร แต่ต้องระวัง ห้ามใช้ Dijkstra's Algorithm กับกราฟที่มี negative weight
 
 ### 1.3.2 Bellman-Ford Algorithm
 
-_Coming Soon_
+Bellman-Ford Algorithm มีไว้เพื่อหาเส้นทางสั้นสุด เริ่มต้นจาก node หนึ่งไปยัง node อื่น ๆ ทุก node มีแนวคิดคร่าว ๆ ดังนี้
+- นิยามให้ `dist[v]` แทนเส้นทางสั้นสุดจาก node เริ่มต้นไปยัง node `v`
+- ตอนแรก ถือว่าทุก node มี `dist[v] = INF` ยกเว้น node เริ่มต้นจะมี `dist[v] = 0`
+- พิจารณา edge `(u, v, w)` แต่ละ edge แล้วเปรียบเทียบเส้นทางที่มาถึง node `v` ได้สองเส้นทาง คือ 1) ระยะทางสั้นสุดเดิมที่มาถึง node `v` ได้ (`dist[v]`) และระยะทางสั้นสุดมาถึง node `u` ต่อด้วย edge ดังกล่าวมาถึง node `v` (`dist[u] + w`) นำค่าที่น้อยกว่าเก็บลงใน `dist[v]`
+- เมื่อพิจารณาครบทุก edge แล้ว ให้พิจารณาซ้ำอีกรอบ ทำเรื่อย ๆ จนกว่าจะเจอรอบที่ไม่มีการเปลี่ยนแปลงค่า `dist[v]` ใด ๆ แล้วจึงหยุดการทำงานของโปรแกรม
+
+สังเกตว่าวิธีนี้ จะต้องพิจารณา edge ซ้ำทั้งหมดไม่เกิน `n-1` รอบ เพราะ path จาก node เริ่มต้นไปยัง node ใด ๆ ที่เป็นเส้นทางสั้นสุด ย่อมผ่านเส้นไม่เกิน `n-1` เส้น ดังนั้น algorithm นี้จะทำงานในเวลา `O(nm)`
+
+algorithm นี้สามารถใช้หาเส้นทางสั้นสุดได้ในกรณีที่กราฟมี edge ที่มี negative weight (ใช้ Dijkstra's Algorithm ไม่ได้)
+
+ในกรณีที่กราฟมี negative cycle (cycle ที่มี weight รวมติดลบ) algorithm อาจจะไม่จบการทำงาน ดังนั้นให้นับจำนวนรอบที่พิจารณา edge ด้วย หากทำงานรอบที่ `n-1` แล้วยังพบว่ามีการเปลี่ยนแปลงค่า `dist[v]` ก็สามารถสรุปได้ว่ากราฟมี negative cycle
+
+```cpp
+// รับกราฟเป็น edge list
+struct Edge {
+    int u, v, w;
+};
+vector<Edge> edges;
+
+// bellman-ford:
+
+vector<int> dist(n+1, INF);
+dist[start] = 0;
+
+int count = 0;
+bool found_changes = false;
+bool neg_cycle = false;
+do {
+    found_changes = false;
+    for (auto edge : edges) {
+        int u = edge.u, v = edge.v, w = edge.w;
+        if (dist[u]+w < dist[v]) {
+            dist[v] = dist[u]+w;
+            found_change = true;
+        }
+    }
+    ++count;
+    if (count > n-1 && found_changes) {
+        neg_cycle = true;
+        break;
+    }
+} while (found_changes);
+```
 
 ### 1.3.3 Shortest Path Faster Algorithm
 
-_Coming Soon_
+Bellman-Ford Algorithm ทำงานช้าเนื่องจากลำดับ edge ที่พิจารณาทำให้รอบ ๆ หนึ่งมีการปรับค่า `dist[v]` น้อย ยกตัวอย่างกราฟที่ประกอบไปด้วย `n = 5` nodes และ `m = 4` edges ได้แก่ `(1, 2, 1)`, `(2, 3, 1)`, `(3, 4, 1)`, `(4, 5, 1)` (เป็นกราฟเส้นตรงตั้งแต่ node 1 ถึง 5 แต่ละเส้นหนัก 1)
+
+หาเส้นทางสั้นสุดจาก node 0 - เริ่มมา `dist[1] = 0` ส่วน `dist[2..5] = INF` สังเกตว่า ถ้าเราพิจารณา edge `(4, 5, 1)` ก่อน จะไม่มีการเปลี่ยนแปลง `dist[5]` เลย เพราะ `dist[5] >= dist[4]+1` เช่นเดียวกับ edge `(3, 4, 1)` และ `(2, 3, 1)` ทั้งนี้เป็นเพราะ `dist[2..5] = INF` อยู่ ไม่สามารถนำไปใช้ปรับ distance node อื่น ๆ ได้
+
+สังเกตว่า edge เดียวที่ใช้ได้คือ edge `(1, 2, 1)` จะทำให้ `dist[2] = 1` ส่วน `dist[3..5] = INF` เหมือนเดิม หากเราเริ่มใช้ edge นี้ก่อนตั้งแตแรก ตามด้วย edge `(2, 3, 1)`, `(3, 4, 1)` และ `(4, 5 1)` ก็จะทำให้ปรับ distance เสร็จตั้งแต่รอบแรกทันที
+
+ดังนั้น เราจะเลือก edge อย่างชาญฉลาด ดังนี้
+- เก็บกราฟเป็น adjacency list แทน
+- เก็บ queue ของ node ที่น่าสนใจ เริ่มมาสนใจเฉพาะ node เริ่มต้น
+- เมื่อดึง node ออกจากคิว ให้พิจารณาทุก edge ที่ติดกับ node นั้นแล้วปรับ distance ของ node รอบ ๆ
+- หากมีการเปลี่ยนแปลง ก็ให้ push node ที่มีการเปลี่ยนแปลงใส่คิว
+- ทำไปเรื่อย ๆ จนกว่าจะไม่มีการเปลี่ยนแปลงใด ๆ หรือหากมี node ใดถูกปรับเกิน `n-1` ครั้ง ให้สรุปว่ามี negative cycle
+
+algorithm นี้ โดยเฉลี่ยแล้วจะทำงานใน `O(m)` (ขอไม่กล่าวถึงการพิสูจน์ ณ ที่นี้) แต่มี worst case เป็น `O(nm)` เช่นเดียวกับ Bellman-Ford Algorithm แบบปกติ
+
+สังเกตว่าลักษณะการโค้ดจะโค้ดคล้าย ๆ กับ Breadth-first Search - เพียงแค่ตัด visited array ออกไปเท่านั้น (อนุญาตให้มีการวนกลับมาปรับ node เดิมได้)
+
+```cpp
+// adjaceny list
+using pii = pair<int, int>;
+vector<pii> G[N];
+
+// SPFA:
+
+vector<int> dist(n+1, INF);
+vector<int> count(n+1, 0);
+dist[start] = 0;
+queue<int> Q;
+Q.push(start);
+
+bool neg_cycle = false;
+while (!Q.empty()) {
+    int u = Q.front();
+    Q.pop()
+    if (++count[u] > n-1) {
+        neg_cycle = true;
+        break;
+    }
+    for (auto vw : G[u]) {
+        int v = vw.first, w = vw.second;
+        if (dist[u] + w < dist[v]) {
+            dist[v] = dist[u] + w;
+            Q.push(v);
+        }
+    }
+}
+```
+
+สังเกตว่า SPFA เป็น algorithm ที่เขียนง่ายมาก โจทย์ส่วนใหญ่ไม่ค่อยได้ generate test case ที่เป็น worst case ของ SPFA ไว้มากนัก ดังนั้น สามารถใช้ algorithm นี้แทน Dijkstra's Algorithm ได้ (ถึงอย่างไรก็ตาม ควรเขียน Dijkstra's Algorithm ดั้งเดิมเป็น)
 
 ### 1.3.4 Floyd-Warshall Algorithm
 
@@ -341,7 +436,7 @@ for (int k = 1; k <= n; ++k) {
 }
 ```
 
-สังเกตว่าโค้ดค่อนข้างสั้น อัลกอริทึมนี้ทำงานใน `O(n^3)`
+สังเกตว่าโค้ดค่อนข้างสั้น อัลกอริทึมนี้ทำงานใน `O(n^3)` ซึ่งสามารถรองรับได้เพียงแค่กราฟขนาดเล็กเท่านั้น สามารถใช้อัลกอริทึมนี้กับกราฟที่มี negative weight ได้ การตรวจสอบ negative cycle ให้ดูค่า `dist[u][u]` ของทุก node `u` - หากมีค่าติดลบ จึงสรุปได้ว่ากราฟมี negative cycle
 
 ### 1.3.5 ปัญหาประยุกต์ Shortest Path
 
@@ -610,4 +705,85 @@ while (!Q.empty()) {
 
 ## 1.6 Bridges and Articulation Point
 
-_Coming Soon_
+กำหนดกราฟที่เชื่อมต่อกัน (Connected Graph) มาให้ เราจะเรียก node `u` ว่าเป็น Articulation Point (หรือ Cut Vertex) ก็ต่อเมื่อ การตัด node `u` ออก จะทำให้กราฟขาดออกจากกัน (ไม่ connected)
+
+เราจะเรียก edge `(u, v)` ว่าเป็น Bridge ก็ต่อเมื่อ การตัด edge `(u, v)` ออก จะทำให้กราฟขาดออกจากกัน (ไม่ connected)
+
+หากโจทย์ต้องการให้หา Bridge หรือ Articulation Point วิธีที่ง่ายที่สุดวิธีหนึ่งคือการทดลองตัดทุก node/edge แล้วทำการ DFS เพื่อหาว่ากราฟยังคงมี component เดียวอยู๋หรือไม่
+
+วิธีนี้ หากใช้หา Articulation Point จะใช้เวลา `O(V(V+E))` หากใช้หา Bridge จะใช้เวลา `O(E(V+E))` ซึ่งใช้ไม่ได้ หากกราฟมีขนาดใหญ่
+
+เราสามารถใช้ Tarjan's Algorithm หา Articulation Point หรือ Bridge ได้ใน `O(V+E)` ดังนี้
+
+### 1.6.1 นิยามเกี่ยวกับ edge ใน Depth-first Search
+
+ในการทำ DFS สังเกตว่า เมื่ออยู่ที่ node `u` แล้วเราพิจารณา node `v` ซึ่งอยู่ติดกับ node `u` และไม่ใช่ parent ในการ DFS ของ node `u` จะมีอยู่สองความเป็นไปได้
+1) ยังไม่เคย visit node `v` (ต้อง recursive ต่อไป)
+2) เคย visit node `v` อยู่แล้ว (นั่นคือ เจอ cycle, return)
+
+เราจะเรียก edge `(u, v)` ว่าเป็น tree edge หากตรงตามเงื่อนไขที่ 1 แต่หากตรงตามเงื่อนไขที่ 2 เราจะเรียกว่าเป็น back edge
+
+หากวาดกราฟโดยใช้เฉพาะ tree edge สังเกตว่าเราจะได้ spanning tree ออกมา ส่วน back edge เป็นเหมือนส่วนเสริมที่ทำให้เกิด cycle ต่าง ๆ ในกราฟ
+
+### 1.6.2 นิยาม Discovery Time และ Lowlink Value
+
+ระหว่างทำ DFS เราจะเก็บตัวแปรเพื่อนับลำดับ node ที่เจอ โดยทุกครั้งที่เจอ node ใหม่ เราจะเพิ่มค่า counter ดังกล่าว แล้วเก็บค่าไว้ใน `disc[u]` (`u` คือ node ใหม่ที่พิจารณาอยู่)
+
+ต่อมา ขอนิยามให้ `low[v]` หมายถึง ค่า `disc` ที่น้อยที่สุดที่เป็นไปได้ หากเดินทางลงไปใน subtree บน DFS tree ของ node `v` แล้วเดินทางผ่าน back edge ไม่เกิน 1 เส้น
+
+เมื่อพิจารณา node `u` อยู่ ตอนแรกเราจะกำหนดให้ `low[u] = disc[u]` แล้วเมื่อพิจารณา node รอบ ๆ node `u` - สมมุติว่าพิจารณา node `v` อยู่ (`v` ไม่ใช่ parent ของ node `u` ในการ DFS)
+
+ถ้า `(u, v)` เป็น tree edge (นั่นคือยังไม่เคย visit node `v`) ให้ทำการ DFS ไปยัง node `v` จนเสร็จสิ้น แล้วกำหนดให้ `low[u] = min(low[u], low[v])` (เพราะ `low[v]` จะเก็บค่าน้อยสุดที่เป็นไปได้ หากเราเดินทางผ่าน `(u, v)` ลงไป ก็จะเดินทางไปถึงค่าดังกล่าวได้เช่นกัน นำมากำหนดเป็นค่า `low[u]` ได้)
+
+ถ้า `(u, v)` เป็น back edge (นั่นคือ เคย visit node `v` แล้ว) ไม่จำเป็นต้อง DFS ซ้ำแล้ว แต่ให้กำหนด `low[u] = min(low[u], disc[v])` - สังเกตว่าในทีนี้เราไม่สามารถใช้ `low[v]` ในการปรับค่าได้แล้ว เพราะเราะเดินทางผ่าน `(u, v)` ซึ่งเป็น back edge ไปแล้วเส้นหนึ่ง ตามนิยาม จะใช้ back edge ต่ออีกเส้นหนึ่งไม่ได้
+
+### 1.6.3 คุณสมบัติของ Articulation Point
+
+สำหรับ node `u` ใด ๆ หากพิจารณา tree edge `(u, v)` แล้วพบว่า `low[v] >= disc[u]` นั่นคือ การเดินทางลงไป node `v` เราไม่สามารถหา back edge กลับขึ้นมาเหนือ node `u` ได้ จะสรุปได้ว่า node `u` เป็น articulation point
+
+หากตัด node `u` ทิ้ง จะทำให้กราฟขาดออกจากกันแน่นอน เพราะ node ตั้งแต่ `v` ลงไป ไม่มีทางกลับขึ้นมาเหนือ node `u` ได้ นั่นคือ ไม่สามารถติดต่อกับส่วนอื่น ๆ ของกราฟได้
+
+อนึ่ง มีข้อยกเว้น กรณีที่ node `u` เป็น root ของการ DFS จะใช้เงื่อนไขดังกล่าวไม่ได้ เพราะยังไงก็ไม่มี node ไหนเชื่อมขึ้นไปเหนือ root ได้อีกแล้ว เราจะใช้เงื่อนไขจำนวน node ลูกแทน หากมีจำนวน node ลูกซึ่งเชื่อมต่อกันด้วย tree edge มากกว่า 1 node จะถือว่า node `u` เป็น articulation point
+
+### 1.6.4 คุณสมบัติของ Bridge
+
+สำหรับ tree edge `(u, v)` ใด ๆ หากพบว่า `low[v] > disc[u]` นั่นแปลว่า ทุก node ตั้งแต่ `v` ลงไป ไม่มี back edge กลับขึ้นมาเหนือเส้น `(u, v)` ได้ จะสรุปได้ว่าเส้น `(u, v)` เป็น Bridge
+
+### 1.6.5 โค้ดของ Tarjan's Algorithm
+
+```cpp
+// adjacency list
+vector<int> G[N];
+
+bool visited[N];
+int disc[N], low[N];
+
+set<int> ap; // answer: articulation points
+set<pii> bridge; // answer: bridges
+
+int counter = 0;
+void tarjan(int u, int p) { // p = parent of u
+    visited[u] = true;
+    low[u] = disc[u] = ++counter;
+    int child = 0;
+    for (auto v : G[u]) {
+        if (!visited[v]) {
+            ++child;
+            tarjan(v, u);
+            low[u] = min(low[u], low[v]);
+            // articulation point
+            // ตามเงื่อนไขด้านบน (ในที่นี้ ให้ root มี parent เป็น 0)
+            if ((p != 0 && low[v] >= disc[u]) || (p == 0 && child > 1))
+                ap.insert(u);
+            // bridge
+            if (low[v] > disc[u])
+                bridge.insert(pii(u, v));
+        } else if (v != p) {
+            low[u] = min(low[u], disc[v]);
+        }
+    }
+}
+```
+
+อนึ่ง เราไม่จำเป็นต้องใช้ `visited` array ก็ได้ เพราะตอนแรก `disc` ทุกช่องทีย่ังไม่เคย visit จะมีค่าเท่ากับ 0 - ดังนั้นเช็คค่าจาก `dist` เอาก็ได้
+

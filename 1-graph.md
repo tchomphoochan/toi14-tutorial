@@ -267,7 +267,7 @@ vector<bool> visited(n+1, false);
 
 priority_queue<pii, vector<pii>, greater<pii>> Q;
 dist[start] = 0;
-Q.push({dist[start], start});
+Q.emplace(dist[start], start);
 
 while (!Q.empty()) {
 
@@ -287,7 +287,7 @@ while (!Q.empty()) {
         int w = vw.second;
         if (!visited[v] && dist[u]+w < dist[v]) { // ปรับ distance ให้น้อยลง
             dist[v] = dist[u]+w;
-            Q.push({dist[v], v}) // ถ้าปรับได้ก็ยัดใส่ queue
+            Q.emplace(dist[v], v) // ถ้าปรับได้ก็ยัดใส่ queue
         }
     }
 }
